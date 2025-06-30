@@ -3,9 +3,7 @@ import axios from 'axios'
 import { io } from "socket.io-client";
 
 const API_URL = 'http://localhost:3000'
-
 const socket = io(API_URL);
-
 
 function App() {
   const [url, setUrl] = useState('')
@@ -14,22 +12,18 @@ function App() {
 
   const fetchDownloads = async () => {
     const res = await axios.get<any[]>(`${API_URL}/files`)
-    // console.log('API response:', res.data)
     setDownloads(Array.isArray(res.data) ? res.data : [])
   }
 
   useEffect(() => {
     socket.on("download-status", (data) => {
-      // You can update your UI here, e.g. show progress, add new downloads, etc.
       console.log("Download status update:", data);
-      // Optionally, call fetchDownloads() to refresh the list
       fetchDownloads();
     });
-
     return () => {
       socket.off("download-status");
     };
-  }, []);
+  }, [])
 
   useEffect(() => {
     fetchDownloads()
@@ -37,12 +31,19 @@ function App() {
   }, [])
 
   const handleDownload = async () => {
+    if (!url.trim()) {
+      alert("Please enter a valid YouTube URL")
+      return;
+    }
+
     setLoading(true)
     try {
+      console.log("Sending download request with URL:", url);
       await axios.post(`${API_URL}/download`, { url })
       setUrl('')
       fetchDownloads()
     } catch (err) {
+      console.error("Download failed:", err);
       alert('Download failed')
     } finally {
       setLoading(false)
@@ -53,22 +54,18 @@ function App() {
     <div className="p-4 max-w-xl mx-auto">
       <h1 className="text-2xl mb-4 font-bold">Music Downloader</h1>
       <input
+        type="url"
         className="border px-2 py-1 w-full mb-2"
         placeholder="Paste YouTube URL..."
         value={url}
         onChange={(e) => setUrl(e.target.value)}
       />
       <button
-        className="bg-blue-500 text-white px-4 py-1 rounded mb-4"
+        className="bg-blue-500 text-white px-4 py-1 rounded mb-4 disabled:opacity-50"
         onClick={handleDownload}
-        disabled={loading}
+        disabled={loading || !url.trim()}
       >
-        {loading && (
-          <div className="mb-2 text-blue-500 flex items-center">
-            Downloading...
-          </div>
-        )}
-        {!loading && 'Download'}
+        {loading ? "Downloading..." : "Download"}
       </button>
 
       <ul className="space-y-4 mt-6">
@@ -88,13 +85,13 @@ function App() {
               <div className="font-semibold truncate text-lg" title={d.title}>
                 {d.title}
               </div>
-              <audio controls src={`http://localhost:3000${d.filePath}`} className="w-full mt-2" />
+              <audio controls src={`${API_URL}${d.filePath}`} className="w-full mt-2" />
               <div className="text-xs text-gray-400 mt-1">Preview</div>
             </div>
             <div className="flex flex-col items-end ml-4 space-y-2">
               <a
                 className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded flex items-center transition"
-                href={`http://localhost:3000${d.filePath}`}
+                href={`${API_URL}${d.filePath}`}
                 download={d.title + '.mp3'}
                 title="Download"
               >
